@@ -2,7 +2,10 @@ var Module = {};
 var drag = false;
 var rect = {};
 var original_image;
+var clone_image;
+var mask;
 var canvas1;
+var IsFG = true;
 
 setCallbacks();
 
@@ -17,6 +20,7 @@ function setCallbacks() {
   canvas1.addEventListener("mousemove", onMouseMove, false);
 }
 
+/*
 function onMouseUp(e) {
   drag = false;
 }
@@ -43,7 +47,7 @@ function onMouseMove(e) {
     }
   }
 }
-
+*/
 
 function getMousePos(evt) {
   var rect = canvas1.getBoundingClientRect();
@@ -51,6 +55,29 @@ function getMousePos(evt) {
     x: evt.clientX - rect.left,
     y: evt.clientY - rect.top
   };
+}
+
+function onMouseUp(e) {
+  drag = false;
+}
+
+function onMouseDown(e) {
+  drag = true;
+}
+
+function onMouseMove(e) {
+  var fgcolor =  new cv.Scalar(0,0,255);
+  var bgcolor =  new cv.Scalar(0,255,0);
+  if(drag)
+  {
+    var mousePos = getMousePos(e);
+    if(IsFG)
+      cv.circle(clone_image,[mousePos.x,mousePos.y], 5, fgcolor, -1, 8, 0);
+    else
+      cv.circle(clone_image,[mousePos.x,mousePos.y], 5, bgcolor, -1, 8, 0);
+    show_image(clone_image, "canvas1");
+  }
+  return ;
 }
 
 function show_image(mat, canvas_id) {
@@ -107,7 +134,11 @@ function onLoadImage(e) {
     ctx.drawImage(img, 0, 0, img.width * scaleFactor, img.height * scaleFactor);
     var img2 = cv.matFromArray(getInput(), 24); // 24 for rgba
     original_image = new cv.Mat(); // Opencv likes RGB
+    mask = cv.Mat.zeros(canvas.height, canvas.width, cv.CV_8UC1);
+    //console.log(canvas.width);
+    //console.log(canvas.height);
     cv.cvtColor(img2, original_image, cv.ColorConversionCodes.COLOR_RGBA2RGB.value, 0);
+    clone_image = original_image.clone();
     img2.delete();
   }
   img.src = url;
@@ -120,23 +151,55 @@ function getInput() {
   return imgData;
 }
 
+function switchFgBg()
+{
+  if(IsFG)
+    IsFG = false;
+  else
+    IsFG = true;
+}
+
 function grabCut() {
   var result = new cv.Mat();
   var bgdModel = new cv.Mat();
   var fgdModel = new cv.Mat();
-  var roiRect = new cv.Rect(rect.startX, rect.startY, rect.w, rect.h);
-  cv.grabCut(original_image, result, roiRect, bgdModel, fgdModel, 1, cv.GrabCutModes.GC_INIT_WITH_RECT.value);
+  var roiRect = new cv.Rect(0,0,0,0);
+  var maskdata = mask.data();
+  var clonedata = clone_image.data();
+  let step = 3 * mask.cols;
+
+  // could be improved ....
+  for (var x = 0; x < mask.rows; x++) {
+    for (var y = 0; y < mask.cols; y++) {
+      if (clonedata[x * step + 3 * y]==0&&clonedata[x * step + 3 * y + 1]==0&&clonedata[x * step + 3 * y + 2]==255) {
+        maskdata[x*mask.cols + y] = 1;
+      }
+      else if (clonedata[x * step + 3 * y]==0&&clonedata[x * step + 3 * y + 1]==255&&clonedata[x * step + 3 * y + 2]==0) 
+      {
+        maskdata[x*mask.cols + y] = 0;
+      }
+      else
+      {
+        maskdata[x*mask.cols + y] = 2;
+      }
+    }
+  }
+  
+  //var roiRect = new cv.Rect(rect.startX, rect.startY, rect.w, rect.h);
+  //cv.grabCut(original_image, result, roiRect, bgdModel, fgdModel, 1, cv.GrabCutModes.GC_INIT_WITH_RECT.value);
+  cv.grabCut(original_image, mask, roiRect, bgdModel, fgdModel, 1, cv.GrabCutModes.GC_INIT_WITH_MASK.value);
   var fg = original_image.clone();
   var view = fg.data();
-  let step = 3 * result.cols;
+  let rstep = 3 * mask.cols;
   // could be improved ....
-  for (var x = 0; x < result.rows; x++) {
-    for (var y = 0; y < result.cols; y++) {
-      var category = result.get_uchar_at(x, y);
+  for (var x = 0; x < mask.rows; x++) {
+    for (var y = 0; y < mask.cols; y++) {
+      var category = mask.get_uchar_at(x, y);
       if (category == cv.GrabCutClasses.GC_BGD.value || category == cv.GrabCutClasses.GC_PR_BGD.value) {
-        view[x * step + 3 * y] = 255;
-        view[x * step + 3 * y + 1] = 255;
-        view[x * step + 3 * y + 2] = 255;
+        view[x * rstep + 3 * y] = 255;
+        view[x * rstep + 3 * y + 1] = 255;
+        view[x * rstep + 3 * y + 2] = 255;
+        //view[x * step + 3 * y + 3] = 128;
       }
     }
   }

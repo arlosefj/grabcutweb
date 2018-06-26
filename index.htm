@@ -22,7 +22,8 @@
     <div class="container">
       <ul>
         <li>Add an image</li>
-        <li>Click and drag your mouse around the area to extract</li>
+        <li>Click and drag your mouse to extract the forground object</li>
+        <li>Click the "switch" button to switch the forground and background labeling</li>
         <li>Click on the "extract" button</li>
       </ul>
     </div>
@@ -37,7 +38,8 @@
             <div class="col-md-6">
               <label class="btn btn-primary">Add Image<input class="input-file" id="my-file" type="file" style="display: none;"></label>
             </div>
-            <div class="col-md-5"></div>
+            <div class="col-md-5"> <button onClick="switchFgBg()" class="btn btn-primary" type="button">Switch FG & BG</button></div>
+
             <div class="col-md-2"><button onClick="grabCut()" class="btn btn-success" type="button">Extract foreground</button></div>
           </div>
         </p>
