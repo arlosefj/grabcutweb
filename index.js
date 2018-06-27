@@ -80,6 +80,12 @@ function onMouseMove(e) {
   return ;
 }
 
+function clearFg()
+{
+  clone_image = original_image.clone();
+  show_image(clone_image, "canvas1");
+}
+
 function show_image(mat, canvas_id) {
   var data = mat.data(); // output is a Uint8Array that aliases directly into the Emscripten heap
 
